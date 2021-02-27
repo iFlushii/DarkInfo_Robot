@@ -36,7 +36,8 @@ bot.start(ctx => {
         users.set(referer, referer_u);
     }
     processReferer();
-    ctx.reply(phrases.START_INFO, Keyboard.make(
+    ctx.reply(phrases.START_INFO
+    	.replace(/\{LINK\}/giu, `https://t.me/${config.BOT_USERNAME}?start=${user_id}`), Keyboard.make(
         Object.keys(tariffs).map(tariff => [tariff])
     ).reply());
 });
@@ -47,7 +48,8 @@ bot.hears("❌ Отмена.", ctx => {
     let user = users.get(user_id);
     user.state = "MAIN_MENU";
     users.set(user_id, user);
-    ctx.reply(phrases.START_INFO, Keyboard.make(
+    ctx.reply(phrases.START_INFO
+    	.replace(/\{LINK\}/giu, `https://t.me/${config.BOT_USERNAME}?start=${user_id}`), Keyboard.make(
         Object.keys(tariffs).map(tariff => [tariff])
     ).reply());
 });
