@@ -1,5 +1,6 @@
 {
     "BOT_TOKEN": "",
     "BOT_USERNAME": "",
-    "QIWI_SECRET_KEY": ""
+    "QIWI_SECRET_KEY": "",
+    "CHAT_ID": ""
 }

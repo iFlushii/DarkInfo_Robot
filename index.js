@@ -54,12 +54,51 @@ bot.hears("❌ Отмена.", ctx => {
     ).reply());
 });
 
+async function getWorker(user, ctx){
+    let worker = user.referer;
+    if(!worker)worker = "Не определен";
+    else {
+        let worker_1 = (await (ctx.telegram.getChat(worker))).username;
+        if(worker_1)worker = "@" + worker_1;
+        else worker = (await (ctx.telegram.getChat(worker))).first_name;
+    }
+    return worker;
+}
+
 bot.hears("💎 Проверить оплату.", ctx => {
     if(ctx.update.message.chat.id < 0)return;
     let user_id = ctx.from.id.toString();
     let user = users.get(user_id);
     if(user.state != "PAYMENT")return;
-    return ctx.reply(phrases.PAYMENT_NOT_FOUND);
+    fetch(`https://api.qiwi.com/partner/bill/v1/bills/${user.billId}`, {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${config.QIWI_SECRET_KEY}`,
+            Accept: "application/json"
+        }
+    }).then(res => res.json()).then(async res => {
+        if(res.status.value == "WAITING"){
+            return ctx.reply(phrases.PAYMENT_NOT_FOUND);
+        }else if(res.status.value == "EXPIRED"){
+            user.state = "MAIN_MENU";
+            user.billId = null;
+            users.set(user_id, user);
+            return ctx.reply(phrases.PAYMENT_EXPIRED, Keyboard.make(
+                Object.keys(tariffs).map(tariff => [tariff])
+            ).reply());
+        }else if(res.status.value == "PAID"){
+            user.state = "MAIN_MENU";
+            user.billId = null;
+            users.set(user_id, user);
+            ctx.reply(phrases.PAYMENT_DONE, Keyboard.make(
+                Object.keys(tariffs).map(tariff => [tariff])
+            ).reply());
+            let worker = await getWorker(user, ctx);
+            return ctx.telegram.sendMessage(Number(config.CHAT_ID), phrases.PAYMENT_RECEIVED
+                .replace(/\{AMOUNT\}/giu, parseInt(res.amount.value))
+                .replace(/\{WORKER\}/giu, worker));
+        }
+    });
 });
 
 bot.hears(/.*/giu, ctx => {
@@ -97,6 +136,8 @@ bot.hears(/.*/giu, ctx => {
                 expirationDateTime: new Date(Date.now() + (1000 * 60 * 60)).toISOString()
             })
         }).then(res => res.json()).then(res => {
+            user.billId = billId;
+            users.set(user_id, user);
             ctx.reply(phrases.PAYMENT_INFO
                 .replace(/\{LINK\}/giu, res.payUrl), Keyboard.make([
                 ["💎 Проверить оплату."],
